@@ -12,15 +12,31 @@ namespace Main
 {
     public class ProjectionGun : MonoBehaviour
     {
-        private Scene _simulationScene;
-        private PhysicsScene _physicsScene;
-
         [SerializeField]
         private Transform _obsticalesParent;
+
+        [SerializeField] 
+        private LineRenderer _line;
+
+        [SerializeField]
+        private int _maxPhysicsFrameIterations = 100;
+
+        private Scene _simulationScene;
+        private PhysicsScene _physicsScene;
+        private readonly Dictionary<Transform, Transform> _spawnedObjects = new Dictionary<Transform, Transform>();
 
         private void Start()
         {
             CreatePhysicsScene();
+        }
+
+        private void Update()
+        {
+            foreach (var item in _spawnedObjects)
+            {
+                item.Value.position = item.Key.position;
+                item.Value.rotation = item.Key.rotation;
+            }
         }
 
         void CreatePhysicsScene()
@@ -33,6 +49,7 @@ namespace Main
                 var ghostObj = Instantiate(obj.gameObject, obj.position, obj.rotation);
                 ghostObj.GetComponent<Renderer>().enabled = false;
                 SceneManager.MoveGameObjectToScene(ghostObj, _simulationScene);
+                if (!ghostObj.isStatic) _spawnedObjects.Add(obj, ghostObj.transform);
             }
         }
 
@@ -42,6 +59,16 @@ namespace Main
             SceneManager.MoveGameObjectToScene(ghostObj.gameObject, _simulationScene);
 
             ghostObj.Init(velocity, true);
+
+            _line.positionCount = _maxPhysicsFrameIterations;
+
+            for (var i = 0; i < _maxPhysicsFrameIterations; i++)
+            {
+                _physicsScene.Simulate(Time.fixedDeltaTime);
+                _line.SetPosition(i, ghostObj.transform.position);
+            }
+
+            Destroy(ghostObj.gameObject);
         }
     }
 }
